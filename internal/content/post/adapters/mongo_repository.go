@@ -4,6 +4,7 @@ import (
 	"common/mongo_utils"
 	"content/post"
 	"context"
+	"errors"
 	"time"
 
 	"go.mongodb.org/mongo-driver/bson"
@@ -60,10 +61,19 @@ func (m *MongoPostRepository) GetPostById(ctx context.Context, id string) (*post
 	var pe PostEntity
 	err = m.collection.FindOne(ctx, filter).Decode(&pe)
 	if err != nil {
+		if errors.Is(err, mongo.ErrNoDocuments) {
+			return nil, nil
+		}
 		return nil, err
 	}
-	createdAt, _ := time.Parse(timeFormat, pe.CreatedAt)
-	updatedAt, _ := time.Parse(timeFormat, pe.UpdatedAt)
+	createdAt, err := time.Parse(timeFormat, pe.CreatedAt)
+	if err != nil {
+		return nil, err
+	}
+	updatedAt, err := time.Parse(timeFormat, pe.UpdatedAt)
+	if err != nil {
+		return nil, err
+	}
 	return post.New(pe.ID.Hex(), pe.Text, createdAt, updatedAt), nil
 }
 
